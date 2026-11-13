@@ -1,0 +1,10 @@
+{
+  "name": "ASSISTENTES DA NATUREZA — ESCOLA NESTOR DE CAMARGO",
+  "description": "Plataforma do curso de Ambientes Inteligentes da Escola Nestor de Camargo para apresentações interativas sobre Pantanal e Amazônia com IoT, IA e monitoramento ambiental.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
