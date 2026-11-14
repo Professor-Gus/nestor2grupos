@@ -36,6 +36,7 @@ import {
   ArrowLeft,
   Cpu,
   Upload,
+  Trophy,
 } from "lucide-react";
 import { safeStorage } from "./safeStorage";
 import { ThemeId, THEMES, THEME_LIST, isValidThemeId } from "./themes";
@@ -49,9 +50,11 @@ import {
   getGroupById,
   getGroupVideoById,
 } from "./groupsConfig";
+import { QuizId, QUIZ_LIST, getQuizById } from "./quizzesData";
 import { SmartAmbientParticles } from "./components/SmartAmbientParticles";
 import { SmartEcosystemModal } from "./components/SmartEcosystemDrawer";
 import { NatureAssistantsLogo } from "./components/NatureAssistantsLogo";
+import { BiomeQuizGame } from "./components/BiomeQuizGame";
 
 export type AppScreen = "welcome" | "group-selection" | "presentation";
 export type VideoQualityPreference = "hd1080" | "hd720" | "large" | "medium" | "auto";
@@ -187,6 +190,7 @@ export default function App() {
   // Primary Navigation Screens: welcome -> group-selection -> presentation
   const [appScreen, setAppScreen] = useState<AppScreen>("welcome");
   const [activeTab, setActiveTab] = useState<"chat" | "settings">("chat");
+  const [activeQuizId, setActiveQuizId] = useState<QuizId | null>(null);
 
   // Active Group State (isolated strictly from groupsConfig)
   const [selectedGroupId, setSelectedGroupId] = useState<GroupId | null>(null);
@@ -1016,6 +1020,15 @@ export default function App() {
   };
 
   // Navigation Handlers
+  const handleOpenQuiz = (quizId: QuizId) => {
+    stopVoiceRecognitionCompletely();
+    stopCurrentPlayerCleanly();
+    playbackSessionRef.current.endedHandled = true;
+    setIsPlayingVideo(false);
+    setActiveTab("chat");
+    setActiveQuizId(quizId);
+  };
+
   const handleEnterGroupSelection = () => {
     stopVoiceRecognitionCompletely();
     stopCurrentPlayerCleanly();
@@ -1024,6 +1037,7 @@ export default function App() {
     setVideoFinished(false);
     setPresentationEnded(false);
     setActiveVideoId(null);
+    setActiveQuizId(null);
     setActiveTab("chat");
     setAppScreen("group-selection");
   };
@@ -1034,6 +1048,7 @@ export default function App() {
     playbackSessionRef.current.endedHandled = true;
     setSelectedGroupId(null);
     setActiveVideoId(null);
+    setActiveQuizId(null);
     setIsPlayingVideo(false);
     setVideoFinished(false);
     setPresentationEnded(false);
@@ -1050,6 +1065,7 @@ export default function App() {
     stopVoiceRecognitionCompletely();
     stopCurrentPlayerCleanly();
 
+    setActiveQuizId(null);
     setSelectedGroupId(group.id);
     // Automatically align visual identity to group's reference theme
     setSelectedThemeId(group.temaReferencia);
@@ -1804,9 +1820,10 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setActiveTab(activeTab === "chat" ? "settings" : "chat")
-                }
+                onClick={() => {
+                  setActiveQuizId(null);
+                  setActiveTab(activeTab === "chat" ? "settings" : "chat");
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition-all border cursor-pointer whitespace-nowrap"
                 style={{
                   backgroundColor:
@@ -1848,8 +1865,16 @@ export default function App() {
             : "px-3 sm:px-6 py-4 sm:py-8"
         } flex flex-col justify-start relative z-10`}
       >
+        {/* ADDITIVE QUIZZES GAME VIEW (when a quiz is active) */}
+        {activeTab === "chat" && activeQuizId !== null && (
+          <BiomeQuizGame
+            quiz={getQuizById(activeQuizId)}
+            onExit={() => setActiveQuizId(null)}
+          />
+        )}
+
         {/* TAB 1: PRESENTATION FLOW (WELCOME -> GROUP SELECTION -> PRESENTATION) */}
-        {activeTab === "chat" && (
+        {activeTab === "chat" && activeQuizId === null && (
           <>
             {/* SCREEN 1: TELA INICIAL (Zero autoplay video!) */}
             {appScreen === "welcome" && (
@@ -1981,6 +2006,68 @@ export default function App() {
                       <span>INICIAR APRESENTAÇÃO</span>
                       <ArrowRight className="w-5 h-5 shrink-0" />
                     </button>
+                  </div>
+
+                  {/* Additive Interactive Quizzes Access */}
+                  <div
+                    className="mt-8 pt-6 border-t space-y-3"
+                    style={{ borderColor: currentTheme.colors.borderSubtle }}
+                  >
+                    <div
+                      className="text-[11px] font-mono font-bold uppercase tracking-widest flex items-center justify-center gap-2"
+                      style={{ color: currentTheme.colors.textMuted }}
+                    >
+                      <Trophy className="w-3.5 h-3.5" style={{ color: currentTheme.colors.primary }} />
+                      <span>Quizzes Interativos · 5 Perguntas · Até 5.000 Pontos</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                      {QUIZ_LIST.map((q) => {
+                        const qTheme = THEMES[q.themeId];
+                        return (
+                          <button
+                            key={q.id}
+                            type="button"
+                            onClick={() => handleOpenQuiz(q.id)}
+                            className="p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-center justify-between gap-3 hover:brightness-110 active:scale-[0.99]"
+                            style={{
+                              backgroundColor: qTheme.colors.bgCard,
+                              borderColor: qTheme.colors.borderMain,
+                            }}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                style={{
+                                  backgroundColor: qTheme.colors.primary,
+                                  color: qTheme.colors.primaryText,
+                                }}
+                              >
+                                {q.themeId === "pantanal" ? (
+                                  <Waves className="w-4 h-4" />
+                                ) : (
+                                  <Trees className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-display font-extrabold text-xs sm:text-sm text-white uppercase tracking-wide truncate">
+                                  {q.title}
+                                </div>
+                                <div
+                                  className="text-[11px] font-mono truncate"
+                                  style={{ color: qTheme.colors.textMuted }}
+                                >
+                                  5 perguntas · 1.000 pts/acerto
+                                </div>
+                              </div>
+                            </div>
+                            <ArrowRight
+                              className="w-4 h-4 shrink-0"
+                              style={{ color: qTheme.colors.primary }}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -2192,6 +2279,93 @@ export default function App() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Additive Quizzes Section in Group Selection */}
+                <div
+                  className="rounded-3xl border-2 p-5 sm:p-6 space-y-4"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgSurface,
+                    borderColor: currentTheme.colors.borderSubtle,
+                  }}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <Trophy
+                        className="w-5 h-5 shrink-0"
+                        style={{ color: currentTheme.colors.primary }}
+                      />
+                      <div>
+                        <h3
+                          className="font-display font-extrabold text-base sm:text-lg uppercase tracking-wide"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
+                          Quizzes dos Biomas
+                        </h3>
+                        <p
+                          className="text-xs font-sans"
+                          style={{ color: currentTheme.colors.textSecondary }}
+                        >
+                          Teste seus conhecimentos sobre Amazônia e Pantanal (5 perguntas · até 5.000 pontos).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {QUIZ_LIST.map((q) => {
+                      const qTheme = THEMES[q.themeId];
+                      return (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => handleOpenQuiz(q.id)}
+                          className="p-4 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-center justify-between gap-3 hover:brightness-110 active:scale-[0.99]"
+                          style={{
+                            backgroundColor: qTheme.colors.bgCard,
+                            borderColor: qTheme.colors.borderMain,
+                          }}
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                              style={{
+                                backgroundColor: qTheme.colors.primary,
+                                color: qTheme.colors.primaryText,
+                              }}
+                            >
+                              {q.themeId === "pantanal" ? (
+                                <Waves className="w-5 h-5" />
+                              ) : (
+                                <Trees className="w-5 h-5" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-display font-extrabold text-sm sm:text-base text-white uppercase tracking-wide truncate">
+                                {q.title}
+                              </div>
+                              <div
+                                className="text-xs font-mono truncate"
+                                style={{ color: qTheme.colors.textMuted }}
+                              >
+                                {q.subtitle}
+                              </div>
+                            </div>
+                          </div>
+                          <span
+                            className="px-3 py-1.5 rounded-xl font-mono text-[10px] font-extrabold uppercase shrink-0 border"
+                            style={{
+                              backgroundColor: qTheme.colors.primary,
+                              color: qTheme.colors.primaryText,
+                              borderColor: qTheme.colors.borderMain,
+                            }}
+                          >
+                            Jogar
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
             )}
@@ -3984,7 +4158,10 @@ export default function App() {
         onClose={() => setShowEcosystemModal(false)}
         theme={currentTheme}
         onSelectTheme={handleSelectTheme}
-        onOpenSettings={() => setActiveTab("settings")}
+        onOpenSettings={() => {
+          setActiveQuizId(null);
+          setActiveTab("settings");
+        }}
       />
     </div>
   );
